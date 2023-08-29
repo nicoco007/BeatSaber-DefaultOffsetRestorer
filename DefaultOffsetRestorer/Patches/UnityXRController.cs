@@ -1,4 +1,4 @@
-﻿// <copyright file="Plugin.cs" company="nicoco007">
+﻿// <copyright file="UnityXRController.cs" company="nicoco007">
 // This file is part of DefaultOffsetRestorer.
 //
 // DefaultOffsetRestorer is free software: you can redistribute it and/or modify it under the terms
@@ -14,33 +14,19 @@
 // </copyright>
 
 using HarmonyLib;
-using IPA;
-using IPA.Logging;
+using UnityEngine.XR;
 
-namespace DefaultOffsetRestorer;
-
-[Plugin(RuntimeOptions.DynamicInit)]
-public class Plugin
+namespace DefaultOffsetRestorer.Patches
 {
-    private readonly Harmony _harmony = new("com.nicoco007.beat-saber.default-offset-restorer");
-
-    [Init]
-    public Plugin(Logger logger)
+    /// <summary>
+    /// Simply logs for debugging purposes when trying to find the manufacturer of a given controller.
+    /// </summary>
+    [HarmonyPatch(typeof(UnityXRController), nameof(UnityXRController.TryToUpdateManufacturerName))]
+    internal class UnityXRController_TryToUpdateManufacturerName
     {
-        log = logger;
-    }
-
-    internal static Logger log { get; private set; } = null!;
-
-    [OnEnable]
-    public void OnEnable()
-    {
-        _harmony.PatchAll();
-    }
-
-    [OnDisable]
-    public void OnDisable()
-    {
-        _harmony.UnpatchSelf();
+        private static void Prefix(InputDevice device)
+        {
+            Plugin.log.Notice($"Got controller '{device.name}' from manufacturer '{device.manufacturer}'");
+        }
     }
 }
