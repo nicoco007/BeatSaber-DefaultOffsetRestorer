@@ -24,6 +24,24 @@ using Valve.VR;
 namespace DefaultOffsetRestorer.Patches
 {
     /// <summary>
+    /// Initializes OpenVR when <see cref="UnityXRHelper"/> starts.
+    /// </summary>
+    [HarmonyPatch(typeof(UnityXRHelper), nameof(UnityXRHelper.Start))]
+    internal static class UnityXRHelper_Start
+    {
+        private static void Postfix()
+        {
+            EVRInitError error = EVRInitError.None;
+            OpenVR.Init(ref error, EVRApplicationType.VRApplication_Overlay);
+
+            if (error != EVRInitError.None)
+            {
+                Plugin.log.Error("Failed to start OpenVR in Overlay mode: " + error);
+            }
+        }
+    }
+
+    /// <summary>
     /// Applies the user's controller offsets the same way as they used to be before Beat Saber 1.29.4.
     /// </summary>
     [HarmonyPatch(typeof(VRController), nameof(VRController.TryGetControllerOffset))]

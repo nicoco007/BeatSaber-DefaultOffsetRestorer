@@ -389,6 +389,7 @@ dotnet_diagnostic.SA1311.severity = silent
 [**/Patches/*.cs]
 dotnet_diagnostic.SA1309.severity = silent
 dotnet_diagnostic.SA1313.severity = silent
+dotnet_diagnostic.SA1402.severity = silent
 dotnet_diagnostic.SA1649.severity = silent
 
 # Don't require documentation for Plugin classes

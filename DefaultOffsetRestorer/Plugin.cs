@@ -51,15 +51,6 @@ public class Plugin
             return;
         }
 
-        EVRInitError error = EVRInitError.None;
-        OpenVR.Init(ref error, EVRApplicationType.VRApplication_Overlay);
-
-        if (error != EVRInitError.None)
-        {
-            log.Error("Failed to start OpenVR in Overlay mode");
-            return;
-        }
-
         _harmony.PatchAll();
     }
 
