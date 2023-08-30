@@ -13,9 +13,11 @@
 // If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using System;
 using HarmonyLib;
 using IPA;
 using IPA.Logging;
+using Valve.VR;
 
 namespace DefaultOffsetRestorer;
 
@@ -35,6 +37,29 @@ public class Plugin
     [OnEnable]
     public void OnEnable()
     {
+        try
+        {
+            if (!OpenVR.IsRuntimeInstalled())
+            {
+                log.Error("OpenVR runtime (SteamVR) is not installed");
+                return;
+            }
+        }
+        catch (DllNotFoundException)
+        {
+            log.Error("openvr_api.dll not found");
+            return;
+        }
+
+        EVRInitError error = EVRInitError.None;
+        OpenVR.Init(ref error, EVRApplicationType.VRApplication_Overlay);
+
+        if (error != EVRInitError.None)
+        {
+            log.Error("Failed to start OpenVR in Overlay mode");
+            return;
+        }
+
         _harmony.PatchAll();
     }
 
