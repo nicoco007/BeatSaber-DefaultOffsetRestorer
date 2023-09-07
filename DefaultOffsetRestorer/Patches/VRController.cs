@@ -50,11 +50,17 @@ namespace DefaultOffsetRestorer.Patches
         private static readonly uint kInputOriginInfoStructSize = (uint)Marshal.SizeOf(typeof(InputOriginInfo_t));
         private static readonly string[] kOffsetComponentNames = new[] { "openxr_grip", "grip" };
 
-        private static bool Prefix(VRController __instance, ref bool __result, out Pose poseOffset)
+        private static bool Prefix(VRController __instance, ref bool __result, ref Pose poseOffset)
         {
             if (__instance._vrPlatformHelper is not UnityXRHelper unityXRHelper)
             {
-                poseOffset = default;
+                return true;
+            }
+
+            UnityXRController controller = unityXRHelper.ControllerFromNode(__instance._node);
+
+            if (controller == null)
+            {
                 return true;
             }
 
@@ -64,8 +70,6 @@ namespace DefaultOffsetRestorer.Patches
             {
                 poseOffset = VRController.InvertControllerPose(poseOffset);
             }
-
-            UnityXRController controller = unityXRHelper.ControllerFromNode(__instance._node);
 
             if (__instance._transformOffset != null)
             {
