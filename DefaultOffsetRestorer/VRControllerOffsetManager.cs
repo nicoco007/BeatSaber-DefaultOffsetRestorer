@@ -34,13 +34,13 @@ namespace DefaultOffsetRestorer
         {
             if (controller.manufacturerName == UnityXRHelper.VRControllerManufacturerName.Valve)
             {
-                rotation += new Vector3(-16.3f, 0f, 0f);
-                position += new Vector3(0f, 0.022f, -0.01f);
+                rotation += OffsetConverter.kLegacyIndexControllerOffset.rotation;
+                position += OffsetConverter.kLegacyIndexControllerOffset.position;
             }
             else
             {
-                rotation += new Vector3(-4.3f, 0f, 0f);
-                position += new Vector3(0f, -0.008f, 0f);
+                rotation += OffsetConverter.kLegacyOtherControllerOffset.rotation;
+                position += OffsetConverter.kLegacyOtherControllerOffset.position;
             }
 
             // The original code does transform.Rotate(rotation) then transform.Translate(position)

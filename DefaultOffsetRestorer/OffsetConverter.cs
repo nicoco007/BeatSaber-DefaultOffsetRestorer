@@ -21,26 +21,25 @@ namespace DefaultOffsetRestorer
 {
     internal static class OffsetConverter
     {
+        // numbers are from OpenVRHelper.AdjustControllerTransform in 1.29.1
+        internal static readonly EulerPose kLegacyIndexControllerOffset = new(new Vector3(0f, 0.022f, -0.01f), new Vector3(-16.3f, 0f, 0f));
+        internal static readonly EulerPose kLegacyOtherControllerOffset = new(new Vector3(0f, -0.008f, 0f), new Vector3(-4.3f, 0f, 0f));
+
         internal static (Vector3 position, Vector3 rotation) ConvertFromLegacy(UnityXRHelper unityXRHelper, Pose gripOffset, Vector3 position, Vector3 rotation)
         {
-            UnityXRController controller = unityXRHelper.ControllerFromNode(XRNode.RightHand);
-
-            if (controller == null)
-            {
-                throw new InvalidOperationException("Missing controller");
-            }
-
+            // controller offsets are based on the right hand
+            UnityXRController controller = unityXRHelper.ControllerFromNode(XRNode.RightHand) ?? throw new InvalidOperationException("Missing controller");
             Pose controllerManufacturerOffset = unityXRHelper.GetPoseOffsetForManufacturer(controller.manufacturerName);
 
             if (controller.manufacturerName == UnityXRHelper.VRControllerManufacturerName.Valve)
             {
-                rotation += new Vector3(-16.3f, 0f, 0f);
-                position += new Vector3(0f, 0.022f, -0.01f);
+                rotation += kLegacyIndexControllerOffset.rotation;
+                position += kLegacyIndexControllerOffset.position;
             }
             else
             {
-                rotation += new Vector3(-4.3f, 0f, 0f);
-                position += new Vector3(0f, -0.008f, 0f);
+                rotation += kLegacyOtherControllerOffset.rotation;
+                position += kLegacyOtherControllerOffset.position;
             }
 
             Pose oldLocalOffset = new(gripOffset.position + (gripOffset.rotation * Quaternion.Euler(rotation) * position), gripOffset.rotation * Quaternion.Euler(rotation));
@@ -51,13 +50,8 @@ namespace DefaultOffsetRestorer
 
         internal static (Vector3 position, Vector3 rotation) ConvertToLegacy(UnityXRHelper unityXRHelper, Pose gripOffset, Vector3 position, Vector3 rotation)
         {
-            UnityXRController controller = unityXRHelper.ControllerFromNode(XRNode.RightHand);
-
-            if (controller == null)
-            {
-                throw new InvalidOperationException("Missing controller");
-            }
-
+            // controller offsets are based on the right hand
+            UnityXRController controller = unityXRHelper.ControllerFromNode(XRNode.RightHand) ?? throw new InvalidOperationException("Missing controller");
             Pose controllerManufacturerOffset = unityXRHelper.GetPoseOffsetForManufacturer(controller.manufacturerName);
 
             Pose localOffset = new(position, Quaternion.Euler(rotation));
@@ -68,13 +62,13 @@ namespace DefaultOffsetRestorer
 
             if (controller.manufacturerName == UnityXRHelper.VRControllerManufacturerName.Valve)
             {
-                rotationLegacy -= new Vector3(-16.3f, 0f, 0f);
-                positionLegacy -= new Vector3(0f, 0.022f, -0.01f);
+                rotationLegacy -= kLegacyIndexControllerOffset.rotation;
+                positionLegacy -= kLegacyIndexControllerOffset.position;
             }
             else
             {
-                rotationLegacy -= new Vector3(-4.3f, 0f, 0f);
-                positionLegacy -= new Vector3(0f, -0.008f, 0f);
+                rotationLegacy -= kLegacyOtherControllerOffset.rotation;
+                positionLegacy -= kLegacyOtherControllerOffset.position;
             }
 
             return (positionLegacy, rotationLegacy);

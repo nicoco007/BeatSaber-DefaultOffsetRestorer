@@ -27,11 +27,11 @@ namespace DefaultOffsetRestorer
     internal class ControllerSettingsController : IInitializable, IDisposable
     {
         private readonly SettingsNavigationController _settingsNavigationController;
-        private readonly ControllersTransformSettingsViewController _controllersTransformSettingsViewController;
         private readonly MainSettingsModelSO _mainSettingsModel;
         private readonly Settings _settings;
         private readonly UnityXRHelper _unityXRHelper;
 
+        private ControllersTransformSettingsViewController? _controllersTransformSettingsViewController;
         private Toggle? _toggle;
         private GameObject? _rootObject;
         private bool _wasEnabled;
@@ -44,7 +44,6 @@ namespace DefaultOffsetRestorer
             }
 
             _settingsNavigationController = settingsNavigationController;
-            _controllersTransformSettingsViewController = settingsNavigationController.transform.Find("ControllersTransformSettings").GetComponent<ControllersTransformSettingsViewController>();
             _mainSettingsModel = mainSettingsModel;
             _settings = settings;
             _unityXRHelper = unityXRHelper;
@@ -53,8 +52,9 @@ namespace DefaultOffsetRestorer
         /// <inheritdoc/>
         public void Initialize()
         {
-            Transform parent = _settingsNavigationController.transform.Find("ControllersTransformSettings/Content");
-            _rootObject = CreateToggleSetting(parent);
+            _controllersTransformSettingsViewController = _settingsNavigationController.transform.Find("ControllersTransformSettings").GetComponent<ControllersTransformSettingsViewController>();
+
+            _rootObject = CreateToggleSetting();
 
             _settingsNavigationController.didFinishEvent += OnDidFinish;
             _settingsNavigationController.didActivateEvent += OnDidActivate;
@@ -84,23 +84,19 @@ namespace DefaultOffsetRestorer
             _wasEnabled = _settings.enabled;
         }
 
-        private CustomFormatRangeValuesSlider GetSlider(Transform parent, string name)
-        {
-            return parent.Find($"{name}/Slider").GetComponent<CustomFormatRangeValuesSlider>();
-        }
-
         private void OnDidFinish(SettingsNavigationController.FinishAction finishAction)
         {
-            if (finishAction is not SettingsNavigationController.FinishAction.Ok or SettingsNavigationController.FinishAction.Apply)
+            if (finishAction is not SettingsNavigationController.FinishAction.Ok and not SettingsNavigationController.FinishAction.Apply)
             {
                 _settings.enabled = _wasEnabled;
                 _toggle!.isOn = _wasEnabled;
             }
         }
 
-        private GameObject CreateToggleSetting(Transform parent)
+        private GameObject CreateToggleSetting()
         {
             GameObject toggleTemplate = _settingsNavigationController.transform.Find("GraphicSettings/ViewPort/Content/Fullscreen").gameObject;
+            Transform parent = _controllersTransformSettingsViewController!.transform.Find("Content");
 
             GameObject gameObject = Object.Instantiate(toggleTemplate, parent, false);
             GameObject nameText = gameObject.transform.Find("NameText").gameObject;
@@ -146,6 +142,7 @@ namespace DefaultOffsetRestorer
             Vector3 controllerPosition = _mainSettingsModel.controllerPosition;
             Vector3 controllerRotation = _mainSettingsModel.controllerRotation;
 
+            // controller offsets are based on the right hand
             if (!OpenVRUtilities.TryGetGripOffset(XRNode.RightHand, out Pose poseOffset))
             {
                 return;
@@ -162,12 +159,12 @@ namespace DefaultOffsetRestorer
 
             _settings.enabled = value;
 
-            _controllersTransformSettingsViewController._posXSlider.value = controllerPosition.x * 100f;
-            _controllersTransformSettingsViewController._posYSlider.value = controllerPosition.y * 100f;
-            _controllersTransformSettingsViewController._posZSlider.value = controllerPosition.z * 100f;
-            _controllersTransformSettingsViewController._rotXSlider.value = Clamp180(controllerRotation.x);
-            _controllersTransformSettingsViewController._rotYSlider.value = Clamp180(controllerRotation.y);
-            _controllersTransformSettingsViewController._rotZSlider.value = Clamp180(controllerRotation.z);
+            _controllersTransformSettingsViewController!._posXSlider.value = controllerPosition.x * 100f;
+            _controllersTransformSettingsViewController!._posYSlider.value = controllerPosition.y * 100f;
+            _controllersTransformSettingsViewController!._posZSlider.value = controllerPosition.z * 100f;
+            _controllersTransformSettingsViewController!._rotXSlider.value = Clamp180(controllerRotation.x);
+            _controllersTransformSettingsViewController!._rotYSlider.value = Clamp180(controllerRotation.y);
+            _controllersTransformSettingsViewController!._rotZSlider.value = Clamp180(controllerRotation.z);
 
             _mainSettingsModel.controllerPosition.value = controllerPosition;
             _mainSettingsModel.controllerRotation.value = controllerRotation;
