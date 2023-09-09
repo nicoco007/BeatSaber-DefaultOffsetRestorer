@@ -143,6 +143,12 @@ namespace DefaultOffsetRestorer.Patches
                 return false;
             }
 
+            if (error is EVRInputError.NoData or EVRInputError.InvalidHandle)
+            {
+                poseOffset = Pose.identity;
+                return false;
+            }
+
             string? renderModelName = GetStringTrackedDeviceProperty(originInfo.trackedDeviceIndex, ETrackedDeviceProperty.Prop_RenderModelName_String);
 
             if (renderModelName == null)
@@ -166,7 +172,7 @@ namespace DefaultOffsetRestorer.Patches
 
             if (!success)
             {
-                Plugin.log.Warn($"Controller at '{devicePath}' does not have a grip offset");
+                Plugin.log.Warn($"Controller '{renderModelName}' at '{devicePath}' does not have a grip offset");
                 poseOffset = Pose.identity;
                 return false;
             }
