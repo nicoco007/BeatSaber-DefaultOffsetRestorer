@@ -14,9 +14,13 @@
 // </copyright>
 
 using System;
+using DefaultOffsetRestorer.Installers;
 using HarmonyLib;
 using IPA;
+using IPA.Config;
+using IPA.Config.Stores;
 using IPA.Logging;
+using SiraUtil.Zenject;
 using Valve.VR;
 
 namespace DefaultOffsetRestorer;
@@ -27,9 +31,13 @@ public class Plugin
     private readonly Harmony _harmony = new("com.nicoco007.beat-saber.default-offset-restorer");
 
     [Init]
-    public Plugin(Logger logger)
+    public Plugin(Logger logger, Config config, Zenjector zenjector)
     {
         log = logger;
+        Settings settings = config.Generated<Settings>();
+
+        zenjector.Install<AppInstaller>(Location.App, settings);
+        zenjector.Install<MenuInstaller>(Location.Menu);
     }
 
     internal static Logger log { get; private set; } = null!;

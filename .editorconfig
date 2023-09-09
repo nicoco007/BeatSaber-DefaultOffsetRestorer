@@ -384,6 +384,7 @@ dotnet_diagnostic.SA1101.severity = silent
 dotnet_diagnostic.SA1300.severity = silent
 dotnet_diagnostic.SA1309.severity = silent
 dotnet_diagnostic.SA1311.severity = silent
+dotnet_diagnostic.SA1316.severity = silent
 
 # Ignore StyleCop rules that don't make sense for Harmony patches
 [**/Patches/*.cs]

@@ -1,4 +1,4 @@
-﻿// <copyright file="VRController.cs" company="nicoco007">
+﻿// <copyright file="OpenVRUtilities.cs" company="nicoco007">
 // This file is part of DefaultOffsetRestorer.
 //
 // DefaultOffsetRestorer is free software: you can redistribute it and/or modify it under the terms
@@ -16,98 +16,18 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
-using HarmonyLib;
 using UnityEngine;
 using UnityEngine.XR;
 using Valve.VR;
 
-namespace DefaultOffsetRestorer.Patches
+namespace DefaultOffsetRestorer
 {
-    /// <summary>
-    /// Initializes OpenVR when <see cref="UnityXRHelper"/> starts.
-    /// </summary>
-    [HarmonyPatch(typeof(UnityXRHelper), nameof(UnityXRHelper.Start))]
-    internal static class UnityXRHelper_Start
-    {
-        private static void Postfix()
-        {
-            EVRInitError error = EVRInitError.None;
-            OpenVR.Init(ref error, EVRApplicationType.VRApplication_Overlay);
-
-            if (error != EVRInitError.None)
-            {
-                Plugin.log.Error("Failed to start OpenVR in Overlay mode: " + error);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Applies the user's controller offsets the same way as they used to be before Beat Saber 1.29.4.
-    /// </summary>
-    [HarmonyPatch(typeof(VRController), nameof(VRController.TryGetControllerOffset))]
-    internal static class VRController_TryGetControllerOffset
+    internal class OpenVRUtilities
     {
         private static readonly uint kInputOriginInfoStructSize = (uint)Marshal.SizeOf(typeof(InputOriginInfo_t));
         private static readonly string[] kOffsetComponentNames = new[] { "openxr_grip", "grip" };
 
-        private static bool Prefix(VRController __instance, ref bool __result, ref Pose poseOffset)
-        {
-            if (__instance._vrPlatformHelper is not UnityXRHelper unityXRHelper)
-            {
-                return true;
-            }
-
-            UnityXRController controller = unityXRHelper.ControllerFromNode(__instance._node);
-
-            if (controller == null)
-            {
-                return true;
-            }
-
-            __result = GetGripOffset(__instance._node, out poseOffset);
-
-            if (__instance._node == XRNode.LeftHand)
-            {
-                poseOffset = VRController.InvertControllerPose(poseOffset);
-            }
-
-            if (__instance._transformOffset != null)
-            {
-                poseOffset = AdjustControllerPose(controller, poseOffset, __instance._transformOffset.positionOffset, __instance._transformOffset.rotationOffset);
-            }
-            else
-            {
-                poseOffset = AdjustControllerPose(controller, poseOffset, Vector3.zero, Vector3.zero);
-            }
-
-            if (__instance._node == XRNode.LeftHand)
-            {
-                poseOffset = VRController.InvertControllerPose(poseOffset);
-            }
-
-            return false;
-        }
-
-        // based on OpenVRHelper's AdjustControllerTransform
-        private static Pose AdjustControllerPose(UnityXRController controller, Pose poseOffset, Vector3 position, Vector3 rotation)
-        {
-            if (controller.manufacturerName == UnityXRHelper.VRControllerManufacturerName.Valve)
-            {
-                rotation += new Vector3(-16.3f, 0f, 0f);
-                position += new Vector3(0f, 0.022f, -0.01f);
-            }
-            else
-            {
-                rotation += new Vector3(-4.3f, 0f, 0f);
-                position += new Vector3(0f, -0.008f, 0f);
-            }
-
-            // The original code does transform.Rotate(rotation) then transform.Translate(position)
-            // so we have to rotate the position by both the pose offset and the rotation.
-            return new Pose(poseOffset.position + (poseOffset.rotation * Quaternion.Euler(rotation) * position), poseOffset.rotation * Quaternion.Euler(rotation));
-        }
-
-        private static bool GetGripOffset(XRNode node, out Pose poseOffset)
+        internal static bool TryGetGripOffset(XRNode node, out Pose poseOffset)
         {
             if (OpenVR.Input == null || !OpenVR.System.IsInputAvailable())
             {
@@ -136,15 +56,13 @@ namespace DefaultOffsetRestorer.Patches
             InputOriginInfo_t originInfo = default;
             error = OpenVR.Input.GetOriginTrackedDeviceInfo(handle, ref originInfo, kInputOriginInfoStructSize);
 
-            if (error is not EVRInputError.None and not EVRInputError.NoData and not EVRInputError.InvalidHandle)
+            if (error is not EVRInputError.None)
             {
-                Plugin.log.Error($"Failed to get origin tracked device info for '{devicePath}' ({handle}): {error}");
-                poseOffset = Pose.identity;
-                return false;
-            }
+                if (error is not EVRInputError.NoData and not EVRInputError.InvalidHandle)
+                {
+                    Plugin.log.Error($"Failed to get origin tracked device info for '{devicePath}' ({handle}): {error}");
+                }
 
-            if (error is EVRInputError.NoData or EVRInputError.InvalidHandle)
-            {
                 poseOffset = Pose.identity;
                 return false;
             }
@@ -172,7 +90,7 @@ namespace DefaultOffsetRestorer.Patches
 
             if (!success)
             {
-                Plugin.log.Warn($"Controller '{renderModelName}' at '{devicePath}' does not have a grip offset");
+                Plugin.log.Warn($"Controller at '{devicePath}' does not have a grip offset");
                 poseOffset = Pose.identity;
                 return false;
             }
@@ -184,7 +102,7 @@ namespace DefaultOffsetRestorer.Patches
             return true;
         }
 
-        private static string? GetStringTrackedDeviceProperty(uint deviceIndex, ETrackedDeviceProperty property)
+        internal static string? GetStringTrackedDeviceProperty(uint deviceIndex, ETrackedDeviceProperty property)
         {
             ETrackedPropertyError error = ETrackedPropertyError.TrackedProp_Success;
             uint length = OpenVR.System.GetStringTrackedDeviceProperty(deviceIndex, property, null, 0, ref error);
