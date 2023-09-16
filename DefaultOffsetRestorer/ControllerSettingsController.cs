@@ -75,6 +75,9 @@ namespace DefaultOffsetRestorer
 
             _settingsNavigationController.didFinishEvent -= OnDidFinish;
             _settingsNavigationController.didActivateEvent -= OnDidActivate;
+
+            _unityXRHelper.controllersDidChangeReferenceEvent -= ControllersDidChangeReference;
+            _unityXRHelper.controllersDidDisconnectEvent -= ControllersDidChangeReference;
         }
 
         private void ControllersDidChangeReference()
