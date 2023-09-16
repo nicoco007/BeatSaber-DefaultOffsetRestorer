@@ -33,7 +33,8 @@ namespace DefaultOffsetRestorer
 
         private ControllersTransformSettingsViewController? _controllersTransformSettingsViewController;
         private Toggle? _toggle;
-        private GameObject? _rootObject;
+        private Button? _button;
+        private TextMeshProUGUI? _buttonText;
         private bool _wasEnabled;
 
         private ControllerSettingsController(SettingsNavigationController settingsNavigationController, MainSettingsModelSO mainSettingsModel, Settings settings, IVRPlatformHelper vrPlatformHelper)
@@ -54,7 +55,8 @@ namespace DefaultOffsetRestorer
         {
             _controllersTransformSettingsViewController = _settingsNavigationController.transform.Find("ControllersTransformSettings").GetComponent<ControllersTransformSettingsViewController>();
 
-            _rootObject = CreateToggleSetting();
+            _toggle = CreateToggleSetting();
+            (_button, _buttonText) = CreateConvertButton();
 
             _settingsNavigationController.didFinishEvent += OnDidFinish;
             _settingsNavigationController.didActivateEvent += OnDidActivate;
@@ -68,7 +70,8 @@ namespace DefaultOffsetRestorer
         /// <inheritdoc/>
         public void Dispose()
         {
-            Object.Destroy(_rootObject);
+            Object.Destroy(_toggle!.gameObject);
+            Object.Destroy(_button!.gameObject);
 
             _settingsNavigationController.didFinishEvent -= OnDidFinish;
             _settingsNavigationController.didActivateEvent -= OnDidActivate;
@@ -76,12 +79,15 @@ namespace DefaultOffsetRestorer
 
         private void ControllersDidChangeReference()
         {
-            _toggle!.interactable = _unityXRHelper.ControllerFromNode(XRNode.RightHand) != null && OpenVRUtilities.TryGetGripOffset(XRNode.RightHand, out Pose _);
+            bool interactable = _unityXRHelper.ControllerFromNode(XRNode.RightHand) != null && OpenVRUtilities.TryGetGripOffset(XRNode.RightHand, out Pose _);
+            _toggle!.interactable = interactable;
+            _button!.interactable = interactable;
         }
 
         private void OnDidActivate(bool firstActivation, bool addedToHierarchy, bool screenSystemEnabling)
         {
             _wasEnabled = _settings.enabled;
+            HandleOnValueChanged(_settings.enabled);
         }
 
         private void OnDidFinish(SettingsNavigationController.FinishAction finishAction)
@@ -93,7 +99,7 @@ namespace DefaultOffsetRestorer
             }
         }
 
-        private GameObject CreateToggleSetting()
+        private Toggle CreateToggleSetting()
         {
             GameObject toggleTemplate = _settingsNavigationController.transform.Find("GraphicSettings/ViewPort/Content/Fullscreen").gameObject;
             Transform parent = _controllersTransformSettingsViewController!.transform.Find("Content");
@@ -107,14 +113,14 @@ namespace DefaultOffsetRestorer
             gameObject.SetActive(false);
 
             RectTransform rectTransfrom = (RectTransform)gameObject.transform;
-            rectTransfrom.anchoredPosition = new Vector2(0, -45);
+            rectTransfrom.anchoredPosition = new Vector2(0, -43.5f);
 
             AnimatedSwitchView animatedSwitchView = switchView.GetComponent<AnimatedSwitchView>();
-            _toggle = switchView.GetComponent<Toggle>();
-            _toggle.onValueChanged.RemoveAllListeners();
-            _toggle.onValueChanged.AddListener(animatedSwitchView.HandleOnValueChanged);
-            _toggle.isOn = _settings.enabled;
-            _toggle.interactable = true;
+            Toggle toggle = switchView.GetComponent<Toggle>();
+            toggle.onValueChanged.RemoveAllListeners();
+            toggle.onValueChanged.AddListener(animatedSwitchView.HandleOnValueChanged);
+            toggle.isOn = _settings.enabled;
+            toggle.interactable = true;
             animatedSwitchView.enabled = true; // force refresh the UI state
 
             Object.Destroy(nameText.GetComponent("LocalizedTextMeshProUGUI"));
@@ -127,28 +133,60 @@ namespace DefaultOffsetRestorer
             gameObject.GetComponent<LayoutElement>().preferredWidth = 90;
             gameObject.SetActive(true);
 
-            _toggle.onValueChanged.AddListener(HandleOnValueChanged);
+            toggle.onValueChanged.AddListener(HandleOnValueChanged);
 
-            return gameObject;
+            return toggle;
         }
 
-        private void HandleOnValueChanged(bool value)
+        private (Button button, TextMeshProUGUI text) CreateConvertButton()
         {
-            if (value == _settings.enabled)
-            {
-                return;
-            }
+            Transform parent = _controllersTransformSettingsViewController!.transform.Find("Content/ResetButton");
+            GameObject gameObject = Object.Instantiate(parent.gameObject, _controllersTransformSettingsViewController!.transform.Find("Content"), false);
+            gameObject.name = "ConvertOffsetsButton";
 
-            Vector3 controllerPosition = _mainSettingsModel.controllerPosition;
-            Vector3 controllerRotation = _mainSettingsModel.controllerRotation;
+            RectTransform rectTransform = (RectTransform)gameObject.transform;
+            rectTransform.offsetMin = new Vector2(0, -58);
+            rectTransform.offsetMax = new Vector2(0, -53);
+            rectTransform.anchorMin = new Vector2(0.5f, 1);
+            rectTransform.anchorMax = new Vector2(0.5f, 1);
+            rectTransform.pivot = new Vector2(0.5f, 0.5f);
 
+            // this is really stupid but it's to work around the ImageView's preferred size being slightly too big so the ContentSizeFitter doesn't shrink enough
+            rectTransform.localScale = Vector3.one * 0.5f;
+
+            Transform text = gameObject.transform.Find("Text");
+            Object.Destroy(text.GetComponent("LocalizedTextMeshProUGUI"));
+
+            TextMeshProUGUI textMesh = text.GetComponent<TextMeshProUGUI>();
+            textMesh.fontSize = 7;
+            textMesh.fontStyle = FontStyles.Italic;
+
+            ContentSizeFitter contentSizeFitter = gameObject.AddComponent<ContentSizeFitter>();
+            contentSizeFitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+            contentSizeFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            Button button = gameObject.GetComponent<Button>();
+            button.onClick.RemoveAllListeners();
+            button.onClick.AddListener(HandleButtonClicked);
+
+            gameObject.SetActive(true);
+
+            return (button, textMesh);
+        }
+
+        private void HandleButtonClicked()
+        {
             // controller offsets are based on the right hand
             if (!OpenVRUtilities.TryGetGripOffset(XRNode.RightHand, out Pose poseOffset))
             {
                 return;
             }
 
-            if (value)
+            bool newValue = !_settings.enabled;
+            Vector3 controllerPosition = _mainSettingsModel.controllerPosition;
+            Vector3 controllerRotation = _mainSettingsModel.controllerRotation;
+
+            if (newValue)
             {
                 (controllerPosition, controllerRotation) = OffsetConverter.ConvertToLegacy(_unityXRHelper, poseOffset, controllerPosition, controllerRotation);
             }
@@ -156,8 +194,6 @@ namespace DefaultOffsetRestorer
             {
                 (controllerPosition, controllerRotation) = OffsetConverter.ConvertFromLegacy(_unityXRHelper, poseOffset, controllerPosition, controllerRotation);
             }
-
-            _settings.enabled = value;
 
             _controllersTransformSettingsViewController!._posXSlider.value = controllerPosition.x * 100f;
             _controllersTransformSettingsViewController!._posYSlider.value = controllerPosition.y * 100f;
@@ -169,6 +205,13 @@ namespace DefaultOffsetRestorer
             _mainSettingsModel.controllerPosition.value = controllerPosition;
             _mainSettingsModel.controllerRotation.value = controllerRotation;
 
+            _toggle!.isOn = newValue;
+        }
+
+        private void HandleOnValueChanged(bool value)
+        {
+            _settings.enabled = value;
+            _buttonText!.text = value ? "Convert from Legacy Offsets" : "Convert to Legacy Offsets";
             _unityXRHelper.RefreshControllersReference();
         }
 
