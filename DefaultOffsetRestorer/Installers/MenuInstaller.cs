@@ -22,7 +22,7 @@ namespace DefaultOffsetRestorer.Installers
     {
         public override void InstallBindings()
         {
-            Container.Bind(typeof(IInitializable), typeof(IDisposable)).To<ControllerSettingsController>().AsSingle();
+            Container.Bind(typeof(IInitializable), typeof(IDisposable)).To<ControllerSettingsController>().AsSingle().When(ctx => ctx.Container.Resolve<IVRPlatformHelper>() is UnityXRHelper);
         }
     }
 }
