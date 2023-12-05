@@ -13,6 +13,7 @@
 // If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using System;
 using System.Diagnostics.CodeAnalysis;
 using SiraUtil.Affinity;
 using UnityEngine;
@@ -48,36 +49,41 @@ namespace DefaultOffsetRestorer
             return new Pose(poseOffset.position + (poseOffset.rotation * Quaternion.Euler(rotation) * position), poseOffset.rotation * Quaternion.Euler(rotation));
         }
 
-        [AffinityPatch(typeof(VRController), nameof(VRController.TryGetControllerOffset))]
+        [AffinityPatch(
+            typeof(VRController),
+            nameof(VRController.TryGetControllerOffset),
+            AffinityMethodType.Normal,
+            new AffinityArgumentType[] { AffinityArgumentType.Normal, AffinityArgumentType.Normal, AffinityArgumentType.Normal, AffinityArgumentType.Out },
+            new Type[] { typeof(IVRPlatformHelper), typeof(VRControllerTransformOffset), typeof(XRNode), typeof(Pose) })]
         [AffinityPrefix]
         [SuppressMessage("StyleCop.CSharp.NamingRules", "SA1313", Justification = "Special patch naming")]
-        private bool VRController_GetControllerOffset_Prefix(VRController __instance, ref bool __result, ref Pose poseOffset)
+        private bool VRController_GetControllerOffset_Prefix(ref bool __result, IVRPlatformHelper vrPlatformHelper, VRControllerTransformOffset transformOffset, XRNode node, ref Pose poseOffset)
         {
-            if (!_settings.enabled || __instance._vrPlatformHelper is not UnityXRHelper unityXRHelper)
+            if (!_settings.enabled || vrPlatformHelper is not UnityXRHelper unityXRHelper)
             {
                 return true;
             }
 
-            UnityXRController controller = unityXRHelper.ControllerFromNode(__instance._node);
+            UnityXRController controller = unityXRHelper.ControllerFromNode(node);
 
             if (controller == null)
             {
                 return true;
             }
 
-            if (!OpenVRUtilities.TryGetGripOffset(__instance._node, out poseOffset))
+            if (!OpenVRUtilities.TryGetGripOffset(node, out poseOffset))
             {
                 return true;
             }
 
-            if (__instance._node == XRNode.LeftHand)
+            if (node == XRNode.LeftHand)
             {
                 poseOffset = VRController.InvertControllerPose(poseOffset);
             }
 
-            poseOffset = AdjustControllerPose(controller, poseOffset, __instance._transformOffset.positionOffset, __instance._transformOffset.rotationOffset);
+            poseOffset = AdjustControllerPose(controller, poseOffset, transformOffset.positionOffset, transformOffset.rotationOffset);
 
-            if (__instance._node == XRNode.LeftHand)
+            if (node == XRNode.LeftHand)
             {
                 poseOffset = VRController.InvertControllerPose(poseOffset);
             }

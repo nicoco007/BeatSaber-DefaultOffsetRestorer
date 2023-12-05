@@ -82,5 +82,18 @@ namespace DefaultOffsetRestorer
                 inverse * (self.position - lhs.position),
                 inverse * self.rotation);
         }
+
+        internal struct EulerPose
+        {
+            internal EulerPose(Vector3 position, Vector3 rotation)
+            {
+                this.position = position;
+                this.rotation = rotation;
+            }
+
+            internal Vector3 position { get; }
+
+            internal Vector3 rotation { get; }
+        }
     }
 }
